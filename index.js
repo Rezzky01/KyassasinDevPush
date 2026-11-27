@@ -256,6 +256,7 @@ Pesan pribadi massal hanya dikirim kepada nomor yang sudah opt-in.`);
 }
 
 async function startWhatsApp() {
+  if (sock) return;
   if (starting) return starting;
   starting = (async () => {
     const { state, saveCreds } = await useMultiFileAuthState(SESSION_DIR);
