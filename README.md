@@ -1,17 +1,17 @@
 # KyassasinDevPush
 
-Bot WhatsApp Node.js 20+ dengan halaman login **TOKEN SITUS** dan WhatsApp **Pairing Code**.
+Bot WhatsApp Node.js 20+ dengan login langsung memakai **WhatsApp Pairing Code** (tanpa TOKEN SITUS).
 
 ## Menjalankan di GitHub Codespaces
 
 ```bash
 npm install
-export PAIRING_TOKEN="$(openssl rand -hex 24)"
-printf 'TOKEN SITUS: %s\n' "$PAIRING_TOKEN"
 npm start
 ```
 
-Buka tab **Ports**, pastikan port 3000 tersedia, lalu buka alamat forwarded port. Masukkan TOKEN SITUS dan nomor WhatsApp dengan kode negara (angka saja), misalnya 62812xxxx.
+Buka tab **Ports**, pastikan port 3000 tersedia, lalu buka alamat forwarded port. Masukkan nomor WhatsApp dengan kode negara (angka saja), misalnya `62812xxxx`, lalu tekan **Minta kode pairing**.
+
+Di WhatsApp: **Perangkat tertaut** → **Tautkan perangkat** → **Tautkan dengan nomor telepon**, kemudian masukkan kode yang tampil di halaman.
 
 ## Menu perintah
 
@@ -44,4 +44,4 @@ Untuk melindungi privasi dan mencegah spam, bot **tidak mengambil atau mengirim 
 - Persetujuan penerima: `database/consent.json`
 - Interval: `database/bot-config.json`
 
-Jangan membagikan TOKEN SITUS, kode pairing, atau folder session. Gunakan bot sesuai aturan WhatsApp dan hanya kirim pesan yang memang diharapkan penerimanya.
+Jangan bagikan kode pairing atau folder session kepada siapa pun. Halaman pairing sebaiknya tetap memakai port Codespaces berstatus **Private**. Gunakan bot sesuai aturan WhatsApp dan hanya kirim pesan yang memang diharapkan penerimanya.
