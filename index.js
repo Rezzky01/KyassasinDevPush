@@ -61,7 +61,7 @@ app.post("/api/pair", async (req, res) => {
   recent.push(now);
   pairAttempts.set(ip, recent);
   const phone = digits(req.body?.phone);
-  if (!/^\\d{10,15}$/.test(phone)) return res.status(400).json({ error: "Masukkan nomor dengan kode negara, angka saja." });
+  if (!/^\d{10,15}$/.test(phone)) return res.status(400).json({ error: "Masukkan nomor dengan kode negara, angka saja." });
   try {
     await startWhatsApp();
     if (sock?.user) return res.status(409).json({ error: "WhatsApp sudah tertaut." });
