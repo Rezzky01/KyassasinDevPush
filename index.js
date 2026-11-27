@@ -1,5 +1,4 @@
 import express from "express";
-import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import makeWASocket, {
@@ -9,11 +8,6 @@ import makeWASocket, {
 } from "@whiskeysockets/baileys";
 import pino from "pino";
 import { settings } from "./settings.js";
-
-if (!settings.pairingToken) {
-  console.error("PAIRING_TOKEN belum disetel. Ikuti perintah TOKEN SITUS di README.");
-  process.exit(1);
-}
 
 const DATA_DIR = "./database";
 const SESSION_DIR = path.join(DATA_DIR, "session");
@@ -30,11 +24,6 @@ const writeJson = (file, value) => fs.writeFileSync(file, JSON.stringify(value, 
 const digits = (value) => String(value || "").replace(/\D/g, "");
 const ownerJid = `${digits(settings.ownerNumber)}@s.whatsapp.net`;
 const isOwner = (jid) => digits(jid?.split("@")[0]) === digits(settings.ownerNumber);
-const safeEqual = (a, b) => {
-  const left = Buffer.from(String(a || ""));
-  const right = Buffer.from(String(b || ""));
-  return left.length === right.length && crypto.timingSafeEqual(left, right);
-};
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 let sock = null;
 let starting = null;
@@ -54,21 +43,25 @@ app.get("/", (_req, res) => {
 input,button{width:100%;padding:14px;margin:8px 0;border-radius:9px;border:1px solid #34445d;background:#101827;color:#eef2ff}
 button{background:#22c55e;color:#06210f;font-weight:800;border:0;cursor:pointer}small{color:#aab8ce}pre{white-space:pre-wrap;overflow-wrap:anywhere;color:#86efac}
 </style>
-<div class="card"><h2>🤖 ${settings.botName}</h2><p>Masukkan TOKEN SITUS dari terminal, lalu nomor WhatsApp dengan kode negara.</p>
-<input id="token" type="password" placeholder="TOKEN SITUS" autocomplete="off">
+<div class="card"><h2>🤖 ${settings.botName}</h2><p>Masukkan nomor WhatsApp dengan kode negara untuk mendapatkan kode pairing.</p>
 <input id="phone" inputmode="numeric" placeholder="Nomor WhatsApp, contoh 62812xxxx">
 <button onclick="pair()">Minta kode pairing</button><p id="status">Status: ${connectionState}</p><pre id="result"></pre>
-<small>Jangan bagikan TOKEN SITUS, kode pairing, atau folder session kepada siapa pun.</small></div>
+<small>Masukkan kode di WhatsApp &gt; Perangkat tertaut &gt; Tautkan perangkat &gt; Tautkan dengan nomor telepon. Jangan bagikan kode pairing kepada siapa pun.</small></div>
 <script>
-async function pair(){const token=document.querySelector('#token').value;const phone=document.querySelector('#phone').value;const out=document.querySelector('#result');out.textContent='Memproses...';try{const r=await fetch('/api/pair',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({phone})});const d=await r.json();out.textContent=d.code||d.error||'Selesai';}catch(e){out.textContent=e.message}}
+async function pair(){const phone=document.querySelector('#phone').value;const out=document.querySelector('#result');out.textContent='Memproses...';try{const r=await fetch('/api/pair',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({phone})});const d=await r.json();out.textContent=d.code||d.error||'Selesai';}catch(e){out.textContent=e.message}}
 </script></html>`);
 });
 
+const pairAttempts = new Map();
 app.post("/api/pair", async (req, res) => {
-  const token = req.headers.authorization?.replace(/^Bearer\s+/i, "");
-  if (!safeEqual(token, settings.pairingToken)) return res.status(401).json({ error: "TOKEN SITUS salah." });
+  const ip = req.ip || req.socket.remoteAddress || "unknown";
+  const now = Date.now();
+  const recent = (pairAttempts.get(ip) || []).filter(time => now - time < 10 * 60 * 1000);
+  if (recent.length >= 5) return res.status(429).json({ error: "Terlalu banyak permintaan. Coba lagi dalam 10 menit." });
+  recent.push(now);
+  pairAttempts.set(ip, recent);
   const phone = digits(req.body?.phone);
-  if (!/^\d{10,15}$/.test(phone)) return res.status(400).json({ error: "Masukkan nomor dengan kode negara, angka saja." });
+  if (!/^\\d{10,15}$/.test(phone)) return res.status(400).json({ error: "Masukkan nomor dengan kode negara, angka saja." });
   try {
     await startWhatsApp();
     if (sock?.user) return res.status(409).json({ error: "WhatsApp sudah tertaut." });
@@ -80,9 +73,7 @@ app.post("/api/pair", async (req, res) => {
   }
 });
 
-app.get("/api/status", (req, res) => {
-  const token = req.headers.authorization?.replace(/^Bearer\s+/i, "");
-  if (!safeEqual(token, settings.pairingToken)) return res.status(401).json({ error: "Unauthorized" });
+app.get("/api/status", (_req, res) => {
   res.json({ status: connectionState, connected: Boolean(sock?.user) });
 });
 
@@ -299,5 +290,5 @@ async function startWhatsApp() {
 
 app.listen(settings.port, "0.0.0.0", () => {
   console.log(`${settings.botName} berjalan pada port ${settings.port}`);
-  console.log("Buka halaman forwarded port dan masukkan TOKEN SITUS.");
+  console.log("Buka halaman forwarded port, masukkan nomor WhatsApp, lalu gunakan kode pairing.");
 });
