@@ -64,7 +64,23 @@ app.post("/api/pair", async (req, res) => {
   if (!/^\d{10,15}$/.test(phone)) return res.status(400).json({ error: "Masukkan nomor dengan kode negara, angka saja." });
   try {
     await startWhatsApp();
-    if (sock?.user) return res.status(409).json({ error: "WhatsApp sudah tertaut." });
+
+    // Tunggu sampai socket Baileys mulai tersambung sebelum meminta pairing code.
+    const readyDeadline = Date.now() + 15000;
+    while (sock && connectionState === "Belum terhubung" && Date.now() < readyDeadline) {
+      await sleep(250);
+    }
+    if (!sock) throw new Error("Koneksi WhatsApp terputus saat persiapan pairing.");
+    if (sock.user) return res.status(409).json({ error: "WhatsApp sudah tertaut." });
+    if (connectionState === "close") {
+      throw new Error("Koneksi WhatsApp tertutup. Periksa log terminal lalu coba lagi.");
+    }
+
+    // Beri waktu socket menyelesaikan handshake awal.
+    await sleep(2000);
+    if (!sock || connectionState === "close") {
+      throw new Error("Koneksi WhatsApp terputus sebelum kode pairing dibuat.");
+    }
     const code = await sock.requestPairingCode(phone);
     res.json({ code });
   } catch (error) {
